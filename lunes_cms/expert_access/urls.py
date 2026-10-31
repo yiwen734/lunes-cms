@@ -4,7 +4,6 @@ Defines custom schema views and a router that
 handles the url patterns described in the `README.md` file
 """
 
-from django.conf import settings
 from django.contrib.auth.views import (
     LogoutView,
     PasswordChangeDoneView,
@@ -26,7 +25,9 @@ urlpatterns = [
     path("review/", views.review, name="review"),
     path(
         "logout/",
-        LogoutView.as_view(next_page=settings.LOGIN_URL),
+        # The review view requires a login, so it sends the logged out expert to
+        # the login screen with a "next" pointing back to the review view.
+        LogoutView.as_view(next_page=reverse_lazy("expert_access:review")),
         name="logout",
     ),
     path(
