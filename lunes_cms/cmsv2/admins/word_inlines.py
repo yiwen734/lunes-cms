@@ -11,6 +11,7 @@ from django.utils.html import format_html
 from django.utils.safestring import SafeString
 from django.utils.translation import gettext_lazy as _
 
+from lunes_cms.cmsv2.admins.area_content_admin import AreaContentInline
 from lunes_cms.cmsv2.areas import validate_relation_area
 from lunes_cms.cmsv2.models import AlternativeWord, Word
 from lunes_cms.cmsv2.models.unit import UnitWordRelation
@@ -151,7 +152,7 @@ class UnitInlineFormSet(BaseInlineFormSet):
                 form.add_error("unit", error)
 
 
-class UnitInline(admin.TabularInline):
+class UnitInline(AreaContentInline):
     """
     Inline admin for UnitWordRelation model.
 
@@ -164,6 +165,7 @@ class UnitInline(admin.TabularInline):
     verbose_name_plural = format_html_lazy("<h2>{}</h2>", _("Unit-Word Relations"))
     extra = 1
     autocomplete_fields = ["unit"]
+    area_content_field = "unit"
     fields = [
         "unit",
         "image_with_controls",

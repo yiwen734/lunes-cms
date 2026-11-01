@@ -15,7 +15,10 @@ from django.template.response import TemplateResponse
 from django.utils.safestring import mark_safe, SafeString
 from django.utils.translation import gettext_lazy as _
 
-from lunes_cms.cmsv2.admins.area_content_admin import AreaContentAdmin
+from lunes_cms.cmsv2.admins.area_content_admin import (
+    AreaContentAdmin,
+    AreaContentInline,
+)
 from lunes_cms.cmsv2.admins.area_filters import AreaListFilter, JobListFilter
 from lunes_cms.cmsv2.areas import (
     move_unit_to_area,
@@ -100,7 +103,7 @@ class WordInlineFormSet(BaseInlineFormSet):
                 validate_relation_area(self.instance, word)
 
 
-class WordInline(admin.TabularInline):
+class WordInline(AreaContentInline):
     """
     Inline admin for UnitWordRelation model.
 
@@ -112,6 +115,7 @@ class WordInline(admin.TabularInline):
     formset = WordInlineFormSet
     extra = 1
     autocomplete_fields = ["word"]
+    area_content_field = "word"
     fields = [
         "word",
         "image_with_controls",

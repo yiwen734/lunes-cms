@@ -25,7 +25,7 @@ from ..areas import (
 )
 from ..models import Area, Job, Unit, Word
 from ..utils import make_safe_filename
-from .area_content_admin import AreaContentAdmin
+from .area_content_admin import AreaContentAdmin, AreaContentInline
 from .area_filters import AreaListFilter
 from .word_export_resource import WordExportResource
 
@@ -95,7 +95,7 @@ class UnitJobInlineFormSet(BaseInlineFormSet):
             validate_unit_jobs([job, *other_jobs], unit.area)
 
 
-class UnitInline(admin.TabularInline):
+class UnitInline(AreaContentInline):
     """
     Inline admin for the relationship between Job and Unit models.
 
@@ -106,6 +106,7 @@ class UnitInline(admin.TabularInline):
     formset = UnitJobInlineFormSet
     extra = 1
     autocomplete_fields = ["unit"]
+    area_content_field = "unit"
 
 
 class MigratedFilter(admin.SimpleListFilter):

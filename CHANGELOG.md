@@ -4,6 +4,7 @@ UNRELEASED
 * [ [#1009](https://github.com/digitalfabrik/lunes-cms/issues/1009) ] 1009: Serve the content of an area via the API
 * [ [#650](https://github.com/digitalfabrik/lunes-cms/issues/650) ] 650: Notify experts about new content to review
 * [ [#1078](https://github.com/digitalfabrik/lunes-cms/issues/1078) ] 1078: Show translated word types instead of "Nomen" in review admin
+* [ [#1108](https://github.com/digitalfabrik/lunes-cms/issues/1108) ] 1108: Keep units and words added with the "+" icon in the area of the job or unit they are added to
 
 
 2026.6.1

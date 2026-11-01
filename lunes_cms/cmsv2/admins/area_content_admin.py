@@ -2,15 +2,80 @@ from __future__ import absolute_import, annotations, unicode_literals
 
 from typing import Any, TYPE_CHECKING
 
+from django.contrib import admin
+from django.contrib.admin.options import IS_POPUP_VAR
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.http import HttpRequest
 
-from ..areas import administered_areas, default_area
+from ..areas import accessible_areas, administered_areas, default_area
 from .base import BaseAdmin
 
 if TYPE_CHECKING:
     from django.db.models import Field, ForeignKey, Model
     from django.forms import ModelChoiceField, ModelForm
+    from django.forms.models import BaseInlineFormSet
+
+    from ..models import Area
+
+#: The query parameter that tells an add popup the area of the job, unit or
+#: word it was opened from, see :class:`AreaContentInline`
+POPUP_AREA_VAR = "area"
+
+
+class PopupAreaWidgetWrapper(RelatedFieldWidgetWrapper):
+    """
+    A related widget that passes the area of the object it is shown on to its
+    add popup, see :class:`AreaContentInline`.
+    """
+
+    def __init__(self, wrapper: RelatedFieldWidgetWrapper, area_id: int) -> None:
+        super().__init__(
+            wrapper.widget,
+            wrapper.rel,
+            wrapper.admin_site,
+            can_add_related=wrapper.can_add_related,
+            can_change_related=wrapper.can_change_related,
+            can_delete_related=wrapper.can_delete_related,
+            can_view_related=wrapper.can_view_related,
+        )
+        self.area_id = area_id
+
+    def get_context(
+        self, name: str, value: Any, attrs: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        context = super().get_context(name, value, attrs)
+        context["url_params"] += f"&{POPUP_AREA_VAR}={self.area_id}"
+        return context
+
+
+class AreaContentInline(admin.TabularInline):
+    """
+    Inline linking content of an area to a job, unit or word.
+
+    Linked content has to share the area of the object it is linked to. The
+    "+" icon of :attr:`area_content_field` creates new content in a popup,
+    which saves it right away, before the relation is validated along with
+    the page. So the popup is told the area to put the content into, see
+    :meth:`AreaContentAdmin.popup_area`.
+    """
+
+    #: The field whose add popup creates the linked content
+    area_content_field: str
+
+    def get_formset(
+        self, request: HttpRequest, obj: Any = None, **kwargs: Any
+    ) -> type["BaseInlineFormSet[Any, Any, Any]"]:
+        formset = super().get_formset(request, obj, **kwargs)
+        field = formset.form.base_fields.get(self.area_content_field)
+        # The area of an object that is still being added is only picked on
+        # the page, so its popup keeps letting the area be chosen.
+        if (
+            obj is not None
+            and field is not None
+            and isinstance(field.widget, RelatedFieldWidgetWrapper)
+        ):
+            field.widget = PopupAreaWidgetWrapper(field.widget, obj.area_id)
+        return formset
 
 
 class AreaContentAdmin(BaseAdmin):
@@ -22,17 +87,34 @@ class AreaContentAdmin(BaseAdmin):
     content is put into, see :func:`~lunes_cms.cmsv2.areas.default_area`.
     """
 
+    def popup_area(self, request: HttpRequest) -> Area | None:
+        """
+        The area of the job, unit or word an add popup was opened from, see
+        :class:`AreaContentInline`.
+
+        The content added in such a popup is about to be linked to that
+        object, so it has to be put into its area.
+        """
+        area_id = request.GET.get(POPUP_AREA_VAR, "")
+        if IS_POPUP_VAR not in request.GET or not area_id.isdigit():
+            return None
+        return accessible_areas(request.user).filter(pk=area_id).first()
+
     def get_readonly_fields(
         self, request: HttpRequest, obj: Model | None = None
     ) -> list[str]:
         """
-        Only superusers may move content between areas.
+        Only superusers may move content between areas, and content added in
+        a popup stays in the area it is about to be linked into, see
+        :meth:`popup_area`.
 
         An area administrator who administers several areas still has to pick
         one when creating content, so the field stays editable on the add form —
         limited to their own areas, see :meth:`formfield_for_foreignkey`.
         """
         readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is None and self.popup_area(request):
+            return [*readonly_fields, "area"]
         if request.user.is_superuser:
             return readonly_fields
         if obj is None and len(administered_areas(request.user)) > 1:
@@ -58,7 +140,7 @@ class AreaContentAdmin(BaseAdmin):
         form = super().get_form(request, obj, change, **kwargs)
         if obj is not None:
             return form
-        area = default_area(request.user)
+        area = self.popup_area(request) or default_area(request.user)
 
         class PreselectedAreaForm(form):  # type: ignore[misc,valid-type]
             """``form``, with a fresh instance already pointed at the area."""
